@@ -1,46 +1,43 @@
 import json
-import tflite_runtime.interpreter as tflite  # Importando tflite-runtime
 import numpy as np
 import base64
 from PIL import Image
 from io import BytesIO
 import logging
 import os
+import tensorflow as tf  # Importando TensorFlow
 
 # Configura o logger para enviar logs ao CloudWatch
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), 'mnist_model.tflite')
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'mnist_model.keras') # Atualize a extensão para .keras
 
-# Carrega o modelo embutido usando tflite-runtime
+# Carrega o modelo Keras
 def load_model():
-    logger.info('Carregando o modelo TensorFlow Lite...')
-    interpreter = tflite.Interpreter(model_path=MODEL_PATH)
-    interpreter.allocate_tensors()
-    logger.info('Modelo carregado com sucesso.')
-    return interpreter
+    logger.info('Carregando o modelo Keras...')
+    try:
+        model = tf.keras.models.load_model(MODEL_PATH)
+        logger.info('Modelo Keras carregado com sucesso.')
+        return model
+    except Exception as e:
+        logger.error(f'Erro ao carregar o modelo Keras: {str(e)}')
+        raise
 
-interpreter = load_model()
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
+model = load_model()
 
 def predict(image_np):
-    logger.info('Realizando predição...')
+    logger.info('Realizando predição com o modelo Keras...')
     image_np = image_np.astype(np.float32)
+    image_np = np.expand_dims(image_np, axis=0) # Adiciona a dimensão do batch
+    logger.debug(f'Shape da imagem para predição: {image_np.shape}')
 
-    expected_shape = input_details[0]['shape']
-    logger.debug(f'Shape esperado pelo modelo: {expected_shape}')
-    logger.debug(f'Shape fornecido: {image_np.shape}')
-
-    interpreter.set_tensor(input_details[0]['index'], image_np)
-    interpreter.invoke()
-    output = interpreter.get_tensor(output_details[0]['index'])
-    prediction = int(np.argmax(output))
-    logger.info(f'Predição realizada: {prediction}')
+    predictions = model.predict(image_np)
+    prediction = int(np.argmax(predictions))
+    logger.info(f'Predição realizada pelo modelo Keras: {prediction}')
     return prediction
 
-# Função para converter imagem base64 em um array NumPy
+# Função para converter imagem base64 em um array NumPy (mantém a mesma)
 def decode_base64_image(base64_string):
     logger.info('Decodificando a imagem base64...')
     img_data = base64.b64decode(base64_string.split(',')[1])  # Remove a parte "data:image/png;base64,"
@@ -62,7 +59,7 @@ def handler(event, context):
         logger.info(f"Shape da imagem original: {image_np.shape}")
 
         image_np = image_np / 255.0
-        image_np = image_np.reshape(1, 28, 28)
+        # Não precisa mais do reshape aqui, o modelo Keras cuidará disso na predição
 
         result = predict(image_np)
 
