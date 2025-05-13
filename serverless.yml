@@ -1,0 +1,19 @@
+service: mnist-predictor-docker
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  profile: pastiti
+  ecr:
+    images:
+      appimage:
+        path: .  # Caminho para o Dockerfile
+functions:
+  predict:
+    image:
+      name: appimage
+    events:
+      - httpApi:
+          path: /predict
+          method: post
