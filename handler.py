@@ -61,8 +61,7 @@ def handler(event, context):
         image_np = decode_base64_image(base64_image)
         logger.info(f"Shape da imagem original: {image_np.shape}")
 
-        image_np = image_np / 255.0
-        image_np = image_np.reshape(1, 28, 28)
+        image_np = image_np.reshape(1, 28, 28, 1)
 
         result = predict(image_np)
 
